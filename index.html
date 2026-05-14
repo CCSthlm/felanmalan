@@ -482,32 +482,36 @@ async function submitForm() {
       btn.innerHTML = '<i class="ti ti-loader"></i> Laddar upp bilaga...';
       const file = fileInput.files[0];
       const fileBytes = await fileToArrayBuffer(file);
-      // Hämta driveItem id för listitemobjektet
-      const driveItemResp = await fetch(
-        `https://graph.microsoft.com/v1.0/sites/${siteId}/lists/${listId}/items/${itemId}?expand=driveItem`,
-        { headers: { 'Authorization': `Bearer ${token}` } }
-      );
-      const driveItemData = await driveItemResp.json();
-      const driveItemId = driveItemData.driveItem?.id;
-      if (!driveItemId) {
-        console.warn('Kunde inte hitta driveItem för listobjektet - bilaga hoppas över');
-      } else {
-        const driveId = driveItemData.driveItem?.parentReference?.driveId;
-        const fileResp = await fetch(
-          `https://graph.microsoft.com/v1.0/drives/${driveId}/items/${driveItemId}:/${encodeURIComponent(file.name)}:/content`,
-          {
-            method: 'PUT',
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': file.type || 'application/octet-stream'
-            },
-            body: fileBytes
-          }
-        );
-        if (!fileResp.ok) {
-          const fileErr = await fileResp.json();
-          console.warn('Bilaga kunde inte laddas upp:', fileErr.error?.message);
+      // Ladda upp till Delade dokument/Felanmälningar/<ärendenr>/
+      const spToken = await getSpToken();
+      const folderUrl = `/sites/CaravanClubofSweden-Stockholmssektionen/Delade%20dokument/Felan%C3%A4lningar/${tid}`;
+      // Skapa mapp
+      await fetch(
+        `https://caravanclubofswedenstockhol.sharepoint.com/_api/web/folders`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${spToken}`,
+            'Accept': 'application/json;odata=verbose',
+            'Content-Type': 'application/json;odata=verbose'
+          },
+          body: JSON.stringify({ '__metadata': { 'type': 'SP.Folder' }, 'ServerRelativeUrl': folderUrl })
         }
+      );
+      // Ladda upp fil
+      const fileResp = await fetch(
+        `https://caravanclubofswedenstockhol.sharepoint.com/_api/web/GetFolderByServerRelativeUrl('${folderUrl}')/Files/add(url='${encodeURIComponent(file.name)}',overwrite=true)`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${spToken}`,
+            'Accept': 'application/json;odata=verbose'
+          },
+          body: fileBytes
+        }
+      );
+      if (!fileResp.ok) {
+        console.warn('Bilaga kunde inte laddas upp, status:', fileResp.status);
       }
     }
 
@@ -543,6 +547,15 @@ function resetForm() {
     document.getElementById('f-namn').value = accounts[0].name || '';
   }
   window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+async function getSpToken() {
+  const accounts = msalInstance.getAllAccounts();
+  const resp = await msalInstance.acquireTokenSilent({
+    scopes: ['https://caravanclubofswedenstockhol.sharepoint.com/AllSites.Write'],
+    account: accounts[0]
+  });
+  return resp.accessToken;
 }
 
 function fileToBase64(file) {

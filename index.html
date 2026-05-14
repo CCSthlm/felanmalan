@@ -54,10 +54,6 @@
   .ai-text { font-size: 13px; color: #222; line-height: 1.6; }
   .ai-thinking { font-size: 13px; color: #999; font-style: italic; }
 
-  .upload-zone { border: 1.5px dashed #ccc; border-radius: 8px; padding: 1.25rem; text-align: center; cursor: pointer; color: #888; font-size: 13px; transition: all .15s; }
-  .upload-zone:hover { background: #f8f8f8; border-color: #999; }
-  .upload-zone i { font-size: 24px; display: block; margin-bottom: 6px; color: #bbb; }
-  .file-chip { display: inline-flex; align-items: center; gap: 6px; background: #f0f0f0; border-radius: 6px; padding: 4px 10px; font-size: 12px; margin-top: 8px; color: #333; }
 
   .ai-summary-section { background: #f8f7ff; border-radius: 12px; border: 1px solid #dddaff; padding: 1.25rem; margin-bottom: 1rem; display: none; }
   .ai-summary-section.visible { display: block; }
@@ -423,8 +419,6 @@ async function submitForm() {
 
     const tid = 'FEL-2026-' + Math.floor(1000 + Math.random() * 9000);
     let beskr = document.getElementById('f-beskrivning').value;
-    const kommentar = document.getElementById('f-kommentar').value;
-    if (kommentar) beskr += '\n\nKommentar: ' + kommentar;
 
     const fields = {
       Title: tid,
@@ -475,7 +469,7 @@ async function submitForm() {
 }
 
 function resetForm() {
-  ['f-namn','f-anmalt','f-epost','f-telefon','f-beskrivning','f-kommentar'].forEach(id => document.getElementById(id).value = '');
+  ['f-namn','f-anmalt','f-epost','f-telefon','f-beskrivning'].forEach(id => document.getElementById(id).value = '');
 
   document.getElementById('aiSummarySection').classList.remove('visible');
   document.getElementById('aiHint').textContent = 'Börja skriva så hjälper jag dig beskriva problemet bättre...';
@@ -495,14 +489,7 @@ function resetForm() {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-function fileToBase64(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result.split(',')[1]);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
+
 
 
 

@@ -479,18 +479,16 @@ async function submitForm() {
     if (fileInput.files.length > 0) {
       btn.innerHTML = '<i class="ti ti-loader"></i> Laddar upp bilaga...';
       const file = fileInput.files[0];
+      const fileBytes = await fileToArrayBuffer(file);
       const fileResp = await fetch(
-        `https://graph.microsoft.com/v1.0/sites/${siteId}/lists/${listId}/items/${itemId}/attachments`,
+        `https://graph.microsoft.com/v1.0/sites/${siteId}/lists/${listId}/items/${itemId}/driveItem/children/${encodeURIComponent(file.name)}/content`,
         {
-          method: 'POST',
+          method: 'PUT',
           headers: {
             'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
+            'Content-Type': file.type || 'application/octet-stream'
           },
-          body: JSON.stringify({
-            name: file.name,
-            contentBytes: await fileToBase64(file)
-          })
+          body: fileBytes
         }
       );
       if (!fileResp.ok) {
@@ -539,6 +537,15 @@ function fileToBase64(file) {
     reader.onload = () => resolve(reader.result.split(',')[1]);
     reader.onerror = reject;
     reader.readAsDataURL(file);
+  });
+}
+
+function fileToArrayBuffer(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsArrayBuffer(file);
   });
 }
 

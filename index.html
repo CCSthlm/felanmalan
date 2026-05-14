@@ -200,16 +200,7 @@
           <div class="section-icon"><i class="ti ti-paperclip"></i></div>
           <div class="section-title">Bilaga &amp; kommentar</div>
         </div>
-        <div class="fg">
-          <label>Bifoga skärmbild eller fil (valfritt)</label>
-          <div class="upload-zone" onclick="document.getElementById('f-file').click()" id="dropZone">
-            <i class="ti ti-upload"></i>
-            Klicka eller dra och släpp fil hit<br>
-            <span style="font-size:11px;margin-top:4px;display:block;color:#bbb">PNG, JPG, PDF – max 10 MB</span>
-          </div>
-          <input type="file" id="f-file" class="hidden" accept="image/*,.pdf" onchange="onFileSelect(event)">
-          <div id="fileList"></div>
-        </div>
+  
         <div class="fg" style="margin-bottom:0">
           <label>Ytterligare kommentar</label>
           <textarea id="f-kommentar" placeholder="Något mer att tillägga?" style="min-height:70px"></textarea>
@@ -412,14 +403,6 @@ async function triggerAiSummary() {
   } catch(e) { el.textContent = 'Felanmälan är redo att skickas.'; el.className = 'ai-text'; }
 }
 
-function onFileSelect(e) {
-  const fl = document.getElementById('fileList'); fl.innerHTML = '';
-  for (const f of e.target.files) {
-    const c = document.createElement('div'); c.className = 'file-chip';
-    c.innerHTML = `<i class="ti ti-file"></i>${f.name}`; fl.appendChild(c);
-  }
-}
-
 async function submitForm() {
   const btn = document.getElementById('submitBtn');
   const errBox = document.getElementById('errBox');
@@ -476,44 +459,7 @@ async function submitForm() {
     const itemData = await resp.json();
     const itemId = itemData.id;
 
-    // Ladda upp bifogad fil om det finns en
-    const fileInput = document.getElementById('f-file');
-    if (fileInput.files.length > 0) {
-      btn.innerHTML = '<i class="ti ti-loader"></i> Laddar upp bilaga...';
-      const file = fileInput.files[0];
-      const fileBytes = await fileToArrayBuffer(file);
-      // Ladda upp till Delade dokument/Felanmälningar/<ärendenr>/
-      const spToken = await getSpToken();
-      const folderUrl = `/sites/CaravanClubofSweden-Stockholmssektionen/Delade%20dokument/Felan%C3%A4lningar/${tid}`;
-      // Skapa mapp
-      await fetch(
-        `https://caravanclubofswedenstockhol.sharepoint.com/_api/web/folders`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${spToken}`,
-            'Accept': 'application/json;odata=verbose',
-            'Content-Type': 'application/json;odata=verbose'
-          },
-          body: JSON.stringify({ '__metadata': { 'type': 'SP.Folder' }, 'ServerRelativeUrl': folderUrl })
-        }
-      );
-      // Ladda upp fil
-      const fileResp = await fetch(
-        `https://caravanclubofswedenstockhol.sharepoint.com/_api/web/GetFolderByServerRelativeUrl('${folderUrl}')/Files/add(url='${encodeURIComponent(file.name)}',overwrite=true)`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${spToken}`,
-            'Accept': 'application/json;odata=verbose'
-          },
-          body: fileBytes
-        }
-      );
-      if (!fileResp.ok) {
-        console.warn('Bilaga kunde inte laddas upp, status:', fileResp.status);
-      }
-    }
+
 
     document.getElementById('ticketId').textContent = 'Ärendenr: ' + tid;
     document.getElementById('formContent').classList.add('hidden');
@@ -530,7 +476,7 @@ async function submitForm() {
 
 function resetForm() {
   ['f-namn','f-anmalt','f-epost','f-telefon','f-beskrivning','f-kommentar'].forEach(id => document.getElementById(id).value = '');
-  document.getElementById('fileList').innerHTML = '';
+
   document.getElementById('aiSummarySection').classList.remove('visible');
   document.getElementById('aiHint').textContent = 'Börja skriva så hjälper jag dig beskriva problemet bättre...';
   document.getElementById('aiHint').className = 'ai-thinking';
@@ -549,15 +495,6 @@ function resetForm() {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-async function getSpToken() {
-  const accounts = msalInstance.getAllAccounts();
-  const resp = await msalInstance.acquireTokenSilent({
-    scopes: ['https://caravanclubofswedenstockhol.sharepoint.com/AllSites.Write'],
-    account: accounts[0]
-  });
-  return resp.accessToken;
-}
-
 function fileToBase64(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -567,25 +504,8 @@ function fileToBase64(file) {
   });
 }
 
-function fileToArrayBuffer(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = reject;
-    reader.readAsArrayBuffer(file);
-  });
-}
 
-const dz = document.getElementById('dropZone');
-dz.addEventListener('dragover', e => { e.preventDefault(); dz.style.background = '#f0f0f0'; });
-dz.addEventListener('dragleave', () => { dz.style.background = ''; });
-dz.addEventListener('drop', e => {
-  e.preventDefault(); dz.style.background = '';
-  const dt = new DataTransfer();
-  for (const f of e.dataTransfer.files) dt.items.add(f);
-  document.getElementById('f-file').files = dt.files;
-  onFileSelect({ target: { files: dt.files } });
-});
+
 
 initMsal();
 </script>

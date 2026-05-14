@@ -268,7 +268,7 @@ const msalConfig = {
 };
 
 const msalInstance = new msal.PublicClientApplication(msalConfig);
-const scopes = ['https://graph.microsoft.com/Sites.ReadWrite.All', 'https://caravanclubofswedenstockhol.sharepoint.com/AllSites.Write'];
+const scopes = ['https://graph.microsoft.com/Sites.ReadWrite.All', 'https://graph.microsoft.com/Files.ReadWrite.All'];
 
 let state = { system: '', prioritet: '', paverkan: '', aiSummary: '' };
 let aiTimer = null;
@@ -481,22 +481,33 @@ async function submitForm() {
     if (fileInput.files.length > 0) {
       btn.innerHTML = '<i class="ti ti-loader"></i> Laddar upp bilaga...';
       const file = fileInput.files[0];
-      const fileBase64 = await fileToBase64(file);
-      const fileResp = await fetch(
-        `https://${SHAREPOINT_HOST}/sites/${SITE_NAME}/_api/web/lists/getbytitle('Felanm%C3%A4lningar')/items(${itemId})/AttachmentFiles/add(FileName='${encodeURIComponent(file.name)}')`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Accept': 'application/json;odata=verbose',
-            'Content-Type': 'application/octet-stream',
-            'X-RequestDigest': 'no-digest'
-          },
-          body: Uint8Array.from(atob(fileBase64), c => c.charCodeAt(0))
-        }
+      const fileBytes = await fileToArrayBuffer(file);
+      // Hämta driveItem id för listitemobjektet
+      const driveItemResp = await fetch(
+        `https://graph.microsoft.com/v1.0/sites/${siteId}/lists/${listId}/items/${itemId}?expand=driveItem`,
+        { headers: { 'Authorization': `Bearer ${token}` } }
       );
-      if (!fileResp.ok) {
-        console.warn('Bilaga kunde inte laddas upp, statuskod:', fileResp.status);
+      const driveItemData = await driveItemResp.json();
+      const driveItemId = driveItemData.driveItem?.id;
+      if (!driveItemId) {
+        console.warn('Kunde inte hitta driveItem för listobjektet - bilaga hoppas över');
+      } else {
+        const driveId = driveItemData.driveItem?.parentReference?.driveId;
+        const fileResp = await fetch(
+          `https://graph.microsoft.com/v1.0/drives/${driveId}/items/${driveItemId}:/${encodeURIComponent(file.name)}:/content`,
+          {
+            method: 'PUT',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': file.type || 'application/octet-stream'
+            },
+            body: fileBytes
+          }
+        );
+        if (!fileResp.ok) {
+          const fileErr = await fileResp.json();
+          console.warn('Bilaga kunde inte laddas upp:', fileErr.error?.message);
+        }
       }
     }
 
